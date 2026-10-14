@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Manajemen Siswa, Mutasi & PPDB Sekolah Dasar (SD)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+
+    <div id="toast" class="fixed top-5 right-5 z-50 px-5 py-3 rounded-xl shadow-lg border text-white font-medium flex items-center space-x-3 transition-all duration-300 transform translate-y-[-200%] opacity-0">
+        <span id="toast-icon"></span>
+        <span id="toast-message"></span>
+    </div>
+
+    <header class="bg-slate-900 text-white shadow-md z-30 sticky top-0 flex items-center justify-between px-6 py-3.5">
+        <div class="flex items-center space-x-4">
+            <button onclick="toggleSidebar()" class="p-2 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition">
+                <i data-lucide="menu" id="menu-icon"></i>
+            </button>
+            <div class="flex items-center space-x-3">
+                <div id="header-logo-container" class="w-10 h-10 bg-gradient-to-tr from-red-600 to-rose-500 rounded-xl flex items-center justify-center font-bold text-lg shadow-inner overflow-hidden">
+                    <span id="header-logo-text">SD</span>
+                </div>
+                <div>
+                    <h1 id="header-school-name" class="text-base font-bold tracking-wide">SD NEGERI TELUKNAGA I</h1>
+                    <p class="text-xs text-slate-400">Sistem Informasi Manajemen Siswa & Mutasi Sekolah Dasar</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <div class="hidden lg:flex items-center space-x-2 mr-2">
+                <button onclick="exportDataJSON()" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition">
+                    <i data-lucide="download" size="14"></i><span>Unduh JSON</span>
+                </button>
+                <label class="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 cursor-pointer transition">
+                    <i data-lucide="upload" size="14"></i><span>Muat JSON</span>
+                    <input type="file" id="import-json-file" accept=".json" onchange="importDataJSON(event)" class="hidden">
+                </label>
+            </div>
+            <div class="hidden md:flex flex-col text-right">
+                <span class="text-xs text-slate-400">Tahun Pelajaran SD Aktif</span>
+                <span id="header-active-year" class="text-sm font-semibold text-rose-400">2026/2027</span>
+            </div>
+            <div class="h-8 w-px bg-slate-700 hidden md:block"></div>
+            <div class="flex items-center space-x-2.5 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700">
+                <div class="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center font-bold text-sm text-white">OP</div>
+                <div class="text-left hidden sm:block">
+                    <p class="text-xs font-bold text-white">Operator SD</p>
+                    <p class="text-[10px] text-emerald-400 font-medium">● Penyimpanan Lokal (JSON)</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <aside id="sidebar" class="w-64 bg-slate-900 text-slate-300 transition-all duration-300 flex flex-col border-r border-slate-800 z-20">
+            <div class="p-4 space-y-1.5 flex-1 overflow-y-auto">
+                <p class="px-3 text-[10px] font-bold tracking-wider text-slate-500 uppercase sidebar-title-text text-left">Menu Utama SD</p>
+                <button onclick="switchTab('dashboard')" class="sidebar-btn w-full flex items-center justify-start space-x-3 px-3.5 py-3 rounded-xl text-sm font-medium transition bg-red-600 text-white shadow-md text-left" data-tab="dashboard">
+                    <i data-lucide="database" size="18" class="shrink-0"></i><span class="sidebar-label text-left">Dashboard</span>
+                </button>
+                <button onclick="switchTab('students')" class="sidebar-btn w-full flex items-center justify-start space-x-3 px-3.5 py-3 rounded-xl text-sm font-medium transition text-slate-400 hover:bg-slate-800 hover:text-white text-left" data-tab="students">
+                    <i data-lucide="users" size="18" class="shrink-0"></i><span class="sidebar-label text-left">Data Seluruh Siswa SD</span>
+                </button>
+                <button onclick="switchTab('inbound')" class="sidebar-btn w-full flex items-center justify-start space-x-3 px-3.5 py-3 rounded-xl text-sm font-medium transition text-slate-400 hover:bg-slate-800 hover:text-white text-left" data-tab="inbound">
+                    <i data-lucide="user-plus" size="18" class="shrink-0"></i><span class="sidebar-label text-left">Mutasi Masuk / PPDB SD</span>
+                </button>
+                <button onclick="switchTab('outbound')" class="sidebar-btn w-full flex items-center justify-start space-x-3 px-3.5 py-3 rounded-xl text-sm font-medium transition text-slate-400 hover:bg-slate-800 hover:text-white text-left" data-tab="outbound">
+                    <i data-lucide="user-minus" size="18" class="shrink-0"></i><span class="sidebar-label text-left">Mutasi Keluar (Pindah)</span>
+                </button>
+                <button onclick="switchTab('letters')" class="sidebar-btn w-full flex items-center justify-start space-x-3 px-3.5 py-3 rounded-xl text-sm font-medium transition text-slate-400 hover:bg-slate-800 hover:text-white text-left" data-tab="letters">
+                    <i data-lucide="file-text" size="18" class="shrink-0"></i><span class="sidebar-label text-left">Cetak Surat & No Kustom</span>
+                </button>
+                <button onclick="switchTab('letter_generator')" class="sidebar-btn w-full flex items-center justify-start space-x-3 px-3.5 py-3 rounded-xl text-sm font-medium transition text-slate-400 hover:bg-slate-800 hover:text-white text-left" data-tab="letter_generator">
+                    <i data-lucide="list-ordered" size="18" class="shrink-0"></i><span class="sidebar-label text-left">Generator Nomor Surat Berurutan</span>
+                </button>
+
+                <div class="pt-4 pb-2">
+                    <p class="px-3 text-[10px] font-bold tracking-wider text-slate-500 uppercase sidebar-title-text text-left">Pengaturan Sistem SD</p>
+                </div>
+                <button onclick="switchTab('school_identity')" class="sidebar-btn w-full flex items-center justify-start space-x-3 px-3.5 py-3 rounded-xl text-sm font-medium transition text-slate-400 hover:bg-slate-800 hover:text-white text-left" data-tab="school_identity">
+                    <i data-lucide="building-2" size="18" class="shrink-0"></i><span class="sidebar-label text-left">Identitas & Kop Surat SD</span>
+                </button>
+                <button onclick="switchTab('headmaster')" class="sidebar-btn w-full flex items-center justify-start space-x-3 px-3.5 py-3 rounded-xl text-sm font-medium transition text-slate-400 hover:bg-slate-800 hover:text-white text-left" data-tab="headmaster">
+                    <i data-lucide="award" size="18" class="shrink-0"></i><span class="sidebar-label text-left">Kepala Sekolah SD</span>
+                </button>
+                <button onclick="switchTab('nis_generator')" class="sidebar-btn w-full flex items-center justify-start space-x-3 px-3.5 py-3 rounded-xl text-sm font-medium transition text-slate-400 hover:bg-slate-800 hover:text-white text-left" data-tab="nis_generator">
+                    <i data-lucide="settings" size="18" class="shrink-0"></i><span class="sidebar-label text-left">Generator NIS 8 Digit SD</span>
+                </button>
+            </div>
+            <div class="p-4 border-t border-slate-800 lg:hidden space-y-2">
+                <button onclick="exportDataJSON()" class="w-full bg-slate-800 hover:bg-slate-700 text-emerald-400 py-2 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2">
+                    <i data-lucide="download" size="14"></i><span>Unduh File JSON</span>
+                </button>
+                <label class="w-full bg-slate-800 hover:bg-slate-700 text-amber-400 py-2 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 cursor-pointer">
+                    <i data-lucide="upload" size="14"></i><span>Muat File JSON</span>
+                    <input type="file" accept=".json" onchange="importDataJSON(event)" class="hidden">
+                </label>
+            </div>
+        </aside>
+
+        <main class="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-100/70">
+            
+            <!-- TAB 1: DASHBOARD -->
+            <div id="view-dashboard" class="tab-content space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-900">Dashboard Sekolah Dasar (SD)</h2>
+                        <p class="text-sm text-slate-500 mt-1">Kelola pendaftaran siswa SD, mutasi, serta format NIS 8 digit [Tahun(4)+Kelas SD 1-6(1)+NoUrut(3)]. Data otomatis tersimpan di LocalStorage & siap di-backup.</p>
+                    </div>
+                    <button onclick="openAddModal('BARU')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl font-medium text-sm flex items-center space-x-2 shadow-sm transition">
+                        <i data-lucide="user-plus" size="16"></i><span>Tambah Siswa SD Baru</span>
+                    </button>
+                </div>
+
+                <!-- Stats Dashboard -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                    <div class="p-6 rounded-2xl border bg-red-50 border-red-100 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-600 uppercase">Siswa SD Aktif</p>
+                            <p id="stat-active" class="text-2xl font-black text-slate-900">0</p>
+                        </div>
+                        <div class="p-3.5 bg-white rounded-2xl shadow-sm text-red-600"><i data-lucide="users" size="24"></i></div>
+                    </div>
+                    <div class="p-6 rounded-2xl border bg-emerald-50 border-emerald-100 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-600 uppercase">Mutasi Masuk SD</p>
+                            <p id="stat-inbound" class="text-2xl font-black text-slate-900">0</p>
+                        </div>
+                        <div class="p-3.5 bg-white rounded-2xl shadow-sm text-emerald-600"><i data-lucide="user-plus" size="24"></i></div>
+                    </div>
+                    <div class="p-6 rounded-2xl border bg-amber-50 border-amber-100 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-600 uppercase">Mutasi Keluar SD</p>
+                            <p id="stat-outbound" class="text-2xl font-black text-slate-900">0</p>
+                        </div>
+                        <div class="p-3.5 bg-white rounded-2xl shadow-sm text-amber-600"><i data-lucide="user-minus" size="24"></i></div>
+                    </div>
+                    <div class="p-6 rounded-2xl border bg-indigo-50 border-indigo-100 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-600 uppercase">Penyimpanan</p>
+                            <p class="text-sm font-bold text-indigo-700 mt-1">Lokal / JSON Siap</p>
+                        </div>
+                        <div class="p-3.5 bg-white rounded-2xl shadow-sm text-indigo-600"><i data-lucide="file-json" size="24"></i></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-base font-bold text-slate-900">Siswa SD Terdaftar Terbaru</h3>
+                            <button onclick="switchTab('students')" class="text-xs text-red-600 hover:underline font-semibold">Lihat Semua →</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase">
+                                        <th class="py-3 px-3">Nama Siswa SD</th>
+                                        <th class="py-3 px-3">NIS SD (8 Digit)</th>
+                                        <th class="py-3 px-3">Jenis</th>
+                                        <th class="py-3 px-3">Kelas SD</th>
+                                        <th class="py-3 px-3">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashboard-table-body" class="divide-y divide-slate-100 text-sm"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                        <div class="space-y-3">
+                            <h3 class="text-base font-bold text-slate-900">Format & Backup Data JSON</h3>
+                            <div class="p-3.5 bg-indigo-50 rounded-xl border border-indigo-100 text-xs space-y-1.5 text-indigo-950">
+                                <p class="font-bold">Keuntungan Transfer File JSON:</p>
+                                <p>• Seluruh data murid dan profil sekolah disimpan di komputer/perangkat Anda.</p>
+                                <p>• Anda dapat mendownload file `.json` dan memindahkannya ke komputer lain dengan mudah.</p>
+                            </div>
+                        </div>
+                        <div class="mt-6 space-y-2">
+                            <button onclick="exportDataJSON()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-medium text-sm flex items-center justify-center space-x-2 transition shadow-sm">
+                                <i data-lucide="download" size="16"><span>Unduh Backup JSON</span></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: STUDENTS -->
+            <div id="view-students" class="tab-content hidden space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">Data Seluruh Siswa Sekolah Dasar</h2>
+                        <p class="text-sm text-slate-500">Daftar murid aktif kelas 1 sampai 6 SD beserta data mutasi.</p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="openAddModal('MASUK')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-medium text-sm flex items-center space-x-2">
+                            <i data-lucide="user-plus" size="16"></i><span>Mutasi Masuk SD</span>
+                        </button>
+                        <button onclick="openOutboundModal()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl font-medium text-sm flex items-center space-x-2">
+                            <i data-lucide="user-minus" size="16"></i><span>Mutasi Keluar SD</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                    <div class="relative w-full md:w-80">
+                        <i data-lucide="search" class="absolute left-3 top-3 text-slate-400" size="18"></i>
+                        <input type="text" id="student-search" oninput="renderStudentsTable()" placeholder="Cari nama murid SD atau NIS..." class="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase bg-slate-50">
+                                    <th class="py-3.5 px-4">NIS SD (8 Digit) / NISN</th>
+                                    <th class="py-3.5 px-4">Nama Murid</th>
+                                    <th class="py-3.5 px-4">Jalur Pendaftaran</th>
+                                    <th class="py-3.5 px-4">Asal TK/SD / Tujuan</th>
+                                    <th class="py-3.5 px-4">Kelas SD</th>
+                                    <th class="py-3.5 px-4">Status</th>
+                                    <th class="py-3.5 px-4 text-center">Aksi Surat</th>
+                                </tr>
+                            </thead>
+                            <tbody id="students-table-body" class="divide-y divide-slate-100 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: INBOUND -->
+            <div id="view-inbound" class="tab-content hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">Pengelolaan Siswa Mutasi Masuk SD & PPDB</h2>
+                        <p class="text-sm text-slate-500">Pendaftaran murid baru TK ke SD atau pindahan dari SD lain.</p>
+                    </div>
+                    <button onclick="openAddModal('MASUK')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl font-medium text-sm flex items-center space-x-2">
+                        <i data-lucide="user-plus" size="16"></i><span>Tambah Mutasi Masuk SD</span>
+                    </button>
+                </div>
+                <div id="inbound-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+            </div>
+
+            <!-- TAB 4: OUTBOUND -->
+            <div id="view-outbound" class="tab-content hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">Pengelolaan Mutasi Keluar SD (Pindah Sekolah)</h2>
+                        <p class="text-sm text-slate-500">Catat murid SD yang pindah ke Sekolah Dasar lain.</p>
+                    </div>
+                    <button onclick="openOutboundModal()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl font-medium text-sm flex items-center space-x-2">
+                        <i data-lucide="user-minus" size="16"></i><span>Catat Mutasi Keluar SD</span>
+                    </button>
+                </div>
+                <div id="outbound-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+            </div>
+
+            <!-- TAB 5: LETTERS -->
+            <div id="view-letters" class="tab-content hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h2 class="text-xl font-bold text-slate-900">Pusat Cetak Surat & Form Kustom Penomoran Surat SD</h2>
+                    <p class="text-sm text-slate-500 mt-1">Ubah format nomor surat resmi secara bebas atau gunakan format berurutan.</p>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase bg-slate-50">
+                                    <th class="py-3 px-4">Nama Siswa SD</th>
+                                    <th class="py-3 px-4">NIS SD</th>
+                                    <th class="py-3 px-4">Jenis Surat</th>
+                                    <th class="py-3 px-4">Nomor Surat Saat Ini</th>
+                                    <th class="py-3 px-4 text-center">Aksi & Kustomisasi Nomor</th>
+                                </tr>
+                            </thead>
+                            <tbody id="letters-table-body" class="divide-y divide-slate-100 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: LETTER GENERATOR -->
+            <div id="view-letter_generator" class="tab-content hidden space-y-6 max-w-4xl mx-auto">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h2 class="text-xl font-bold text-slate-900">Form Generator Nomor Surat Berurutan Kustom SD</h2>
+                    <p class="text-sm text-slate-500 mt-1">Atur format prefix, counter berurutan otomatis (misal: 001, 002), dan kode instansi sekolah Anda.</p>
+                </div>
+                <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Klasifikasi / Kode Awalan (Contoh: 400.3.5)</label>
+                            <input type="text" id="gen-prefix" value="400.3.5" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-mono font-bold text-slate-800">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Kode Instansi Sekolah (Contoh: SDN-TELUKNAGA1)</label>
+                            <input type="text" id="gen-school-code" value="SDN-TELUKNAGA1" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-mono font-bold text-red-600">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nomor Urut Surat Berikutnya (Counter)</label>
+                            <input type="number" id="gen-sequence" min="1" max="9999" value="1" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-mono font-bold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Tahun Surat</label>
+                            <input type="text" id="gen-year" maxlength="4" value="2026" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-mono font-bold">
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                        <p class="text-xs font-bold text-slate-700 uppercase">Pratinjau Format Nomor Surat Berurutan:</p>
+                        <div id="gen-preview-box" class="px-4 py-3 rounded-xl bg-white border border-slate-300 font-mono font-bold text-emerald-700 text-base">
+                            400.3.5/001/SDN-TELUKNAGA1/2026
+                        </div>
+                        <p class="text-[11px] text-slate-500">Format ini otomatis mengikuti pola: [Prefix]/[No Urut 3 Digit]/[Kode Sekolah]/[Tahun]</p>
+                    </div>
+
+                    <div class="flex justify-end pt-4 border-t border-slate-100 space-x-3">
+                        <button onclick="saveLetterGeneratorSettings()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-xl font-medium text-sm">Simpan Konfigurasi Nomor Surat</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 6: SCHOOL IDENTITY -->
+            <div id="view-school_identity" class="tab-content hidden space-y-6 max-w-4xl mx-auto">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h2 class="text-xl font-bold text-slate-900">Identitas Sekolah Dasar & Kop Surat 4 Baris</h2>
+                    <p class="text-sm text-slate-500 mt-1">Atur informasi instansi, nama sekolah, dan alamat lengkap untuk kop surat resmi.</p>
+                </div>
+                <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Baris 1: Pemerintah / Kabupaten / Yayasan</label>
+                            <input type="text" id="input-kop-1" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Baris 2: Dinas / Instansi</label>
+                            <input type="text" id="input-kop-2" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Baris 3: Nama Sekolah Dasar</label>
+                            <input type="text" id="input-school-name" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-red-600">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Baris 4: Alamat Lengkap Sekolah</label>
+                            <input type="text" id="input-address" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">NPSN SD</label>
+                            <input type="text" id="input-npsn" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Telepon & Email SD</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <input type="text" id="input-phone" class="px-3 py-2.5 rounded-xl border border-slate-200 text-sm">
+                                <input type="text" id="input-email" class="px-3 py-2.5 rounded-xl border border-slate-200 text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Tahun Masuk/Ajar SD (4 Digit Awal NIS)</label>
+                            <input type="text" id="input-active-year" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-red-600">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Upload Logo Sekolah (JPG / PNG)</label>
+                            <div class="flex items-center space-x-3">
+                                <input type="file" id="input-logo-file" accept="image/png, image/jpeg, image/jpg" onchange="handleLogoUpload(event)" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 cursor-pointer">
+                                <button type="button" onclick="removeLogo()" class="text-xs text-red-600 hover:underline shrink-0 font-semibold">Hapus Logo</button>
+                            </div>
+                            <p class="text-[11px] text-slate-400 mt-1">Logo akan otomatis tersimpan dalam file JSON dan LocalStorage.</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-end pt-4 border-t border-slate-100">
+                        <button onclick="saveSchoolIdentity()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-xl font-medium text-sm shadow-sm">Simpan Identitas & Kop Surat 4 Baris</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 7: HEADMASTER -->
+            <div id="view-headmaster" class="tab-content hidden space-y-6 max-w-4xl mx-auto">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h2 class="text-xl font-bold text-slate-900">Kepala Sekolah Dasar & Penandatangan</h2>
+                </div>
+                <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nama Kepala Sekolah SD</label>
+                            <input type="text" id="input-hm-name" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">NIP Kepala Sekolah</label>
+                            <input type="text" id="input-hm-nip" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-mono">
+                        </div>
+                    </div>
+                    <div class="flex justify-end pt-4 border-t border-slate-100">
+                        <button onclick="saveHeadmaster()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-xl font-medium text-sm">Simpan Data Pejabat SD</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 8: NIS GENERATOR -->
+            <div id="view-nis_generator" class="tab-content hidden space-y-6 max-w-4xl mx-auto">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h2 class="text-xl font-bold text-slate-900">Generator Nomor Induk Siswa (NIS) 8 Digit SD</h2>
+                    <p class="text-sm text-slate-500 mt-1">Formula 8 Digit: 4 digit Tahun Ajar + 1 digit Kelas SD (1 s.d. 6) + 3 digit Urut Ratusan (001, 002...)</p>
+                </div>
+                <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Tahun Ajar (4 Digit)</label>
+                            <input type="text" id="nis-year" maxlength="4" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-mono font-bold text-red-600">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Counter Nomor Urut Ratusan</label>
+                            <input type="number" id="nis-counter" min="1" max="999" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-mono font-bold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Pratinjau NIS (Contoh Kelas 1 SD)</label>
+                            <div id="nis-preview" class="px-4 py-2.5 rounded-xl bg-slate-100 border border-slate-200 font-mono font-bold text-emerald-700">20261001</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-end pt-4 border-t border-slate-100">
+                        <button onclick="saveNisSettings()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-xl font-medium text-sm">Simpan Parameter NIS SD</button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- MODAL: ADD STUDENT -->
+    <div id="modal-add" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+                <h3 id="modal-add-title" class="text-lg font-bold text-slate-900">Formulir Siswa SD</h3>
+                <button onclick="closeModal('modal-add')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" size="20"></i></button>
+            </div>
+            <form id="form-add-student" onsubmit="handleStudentSubmit(event)" class="space-y-4 text-sm">
+                <input type="hidden" id="form-type-val" value="BARU">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Pilih Tingkat Kelas SD (1-6)</label>
+                        <select id="form-class-level" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold text-red-600">
+                            <option value="1">Kelas 1 SD</option>
+                            <option value="2">Kelas 2 SD</option>
+                            <option value="3">Kelas 3 SD</option>
+                            <option value="4">Kelas 4 SD</option>
+                            <option value="5">Kelas 5 SD</option>
+                            <option value="6">Kelas 6 SD</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Rombel / Nama Kelas Target</label>
+                        <input type="text" id="form-class-target" required placeholder="Contoh: Kelas 1-A" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nama Lengkap Murid SD</label>
+                    <input type="text" id="form-fullname" required placeholder="Nama sesuai akta kelahiran" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">NISN (10 Digit)</label>
+                        <input type="text" id="form-nisn" required placeholder="10 digit NISN" class="w-full px-3 py-2 rounded-xl border border-slate-200 font-mono text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Jenis Kelamin</label>
+                        <select id="form-gender" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm">
+                            <option value="L">Laki-laki</option>
+                            <option value="P">Perempuan</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Asal TK / RA / PAUD / SD</label>
+                    <input type="text" id="form-origin" placeholder="Contoh: TK Pembina / SD Negeri 02" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Keterangan Pendaftaran</label>
+                    <textarea id="form-reason" rows="2" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm" placeholder="Keterangan mutasi masuk / PPDB..."></textarea>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('modal-add')" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs font-semibold">Batal</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold shadow-sm">Simpan & Generate NIS 8 Digit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: OUTBOUND -->
+    <div id="modal-outbound" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+                <h3 class="text-lg font-bold text-slate-900">Catat Mutasi Keluar (Pindah) dari Data Terinput</h3>
+                <button onclick="closeModal('modal-outbound')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" size="20"></i></button>
+            </div>
+            <form id="form-outbound-student" onsubmit="handleOutboundSubmit(event)" class="space-y-4 text-sm">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Pilih Siswa Terdaftar (Ambil dari Data Masuk/Aktif)</label>
+                    <select id="outbound-select-student" onchange="onSelectOutboundStudent(this.value)" required class="w-full px-3 py-2.5 rounded-xl border border-slate-200 font-semibold text-slate-800">
+                        <option value="">-- Pilih Siswa yang Akan Mutasi Keluar --</option>
+                    </select>
+                </div>
+                
+                <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1 text-xs text-slate-700 font-mono">
+                    <p><b>NIS SD:</b> <span id="preview-out-nis">-</span></p>
+                    <p><b>NISN:</b> <span id="preview-out-nisn">-</span></p>
+                    <p><b>Kelas Saat Ini:</b> <span id="preview-out-class">-</span></p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Sekolah Dasar Tujuan Pindah</label>
+                    <input type="text" id="outbound-destination" required placeholder="Nama Sekolah Dasar tujuan" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Alasan Pindah Sekolah</label>
+                    <textarea id="outbound-reason" rows="2" required class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm" placeholder="Contoh: Mengikuti orang tua pindah tugas domisili..."></textarea>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('modal-outbound')" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs font-semibold">Batal</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold shadow-sm">Proses Mutasi Keluar & Terbitkan Surat</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: LETTER & PRINT PREVIEW -->
+    <div id="modal-letter" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-3xl w-full p-8 shadow-2xl max-h-[95vh] overflow-y-auto space-y-6">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-200 print:hidden">
+                <h3 class="text-lg font-bold text-slate-900">Form Custom Nomor Surat Resmi SD & Pratinjau</h3>
+                <div class="flex items-center space-x-3">
+                    <button onclick="window.print()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center space-x-1.5 shadow-sm">
+                        <i data-lucide="printer" size="15"></i><span>Cetak / PDF A4</span>
+                    </button>
+                    <button onclick="closeModal('modal-letter')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" size="20"></i></button>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 print:hidden">
+                <div class="flex items-center justify-between">
+                    <label class="block text-xs font-bold text-slate-700 uppercase">Form Edit / Custom Nomor Surat SD:</label>
+                    <button onclick="applySequentialNumber()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1">
+                        <i data-lucide="list-ordered" size="13"></i><span>Generate No. Urut Otomatis</span>
+                    </button>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="custom-letter-input" class="flex-1 px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold font-mono">
+                    <button onclick="saveCustomLetterNumber()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-semibold">Terapkan Nomor Custom</button>
+                </div>
+            </div>
+
+            <!-- Printable A4 Copy Area -->
+            <div id="print-area" class="bg-white p-8 border border-slate-300 shadow-sm text-slate-900 font-serif space-y-6">
+                <!-- KOP SURAT RAPAT/NORMAL (leading-none & space-y-0.5) -->
+                <div class="border-b-4 border-double border-slate-900 pb-2.5 flex items-center justify-between">
+                    <div class="w-16 h-16 flex items-center justify-center bg-slate-50 border border-slate-300 rounded-lg overflow-hidden shrink-0">
+                        <div id="letter-logo-render" class="w-full h-full flex items-center justify-center font-bold text-xl text-red-600">SD</div>
+                    </div>
+                    <div class="flex-1 text-center px-4 space-y-0.5 leading-none">
+                        <h4 id="letter-kop-1" class="text-xs md:text-sm font-bold uppercase tracking-wider leading-tight">PEMERINTAH KABUPATEN TANGERANG</h4>
+                        <h4 id="letter-kop-2" class="text-xs md:text-sm font-bold uppercase tracking-wider leading-tight">DINAS PENDIDIKAN</h4>
+                        <h3 id="letter-school-name" class="text-base md:text-lg font-extrabold uppercase leading-tight">SD NEGERI TELUKNAGA I</h3>
+                        <p id="letter-address" class="text-[10px] md:text-[11px] font-sans text-slate-700 leading-tight pt-0.5">Jl. Raya Kampung Melayu Km. 09, Desa Teluknaga Kecamatan Teluknaga Kabupaten Tangerang</p>
+                    </div>
+                    <div class="w-16 shrink-0"></div>
+                </div>
+
+                <div class="text-center space-y-1 pt-2">
+                    <h2 id="letter-title" class="text-base font-bold underline uppercase tracking-wide">SURAT KETERANGAN DITERIMA</h2>
+                    <p class="text-xs font-sans font-semibold text-slate-600">Nomor: <span id="letter-no-display" class="font-mono text-slate-900">421.2/085/SDN01/2026</span></p>
+                </div>
+
+                <div id="letter-body-content" class="text-sm space-y-3 font-sans leading-relaxed pt-2"></div>
+
+                <div class="flex justify-end pt-8 font-sans">
+                    <div class="text-center space-y-16">
+                        <p id="letter-date-loc" class="text-sm">Tangerang, 14 Oktober 2026<br/>Kepala Sekolah Dasar,</p>
+                        <div>
+                            <p id="letter-hm-name" class="font-bold underline">Siti Maimunah, S.Pd., M.M.</p>
+                            <p id="letter-hm-nip" class="text-xs font-mono text-slate-600">NIP. 197505101998022001</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initial / Default Data Schema with 4-Line Kop Surat
+        const DEFAULT_SCHOOL_PROFILE = {
+            kop1: 'PEMERINTAH KABUPATEN TANGERANG',
+            kop2: 'DINAS PENDIDIKAN',
+            schoolName: 'SD NEGERI TELUKNAGA I',
+            address: 'Jl. Raya Kampung Melayu Km. 09, Desa Teluknaga Kecamatan Teluknaga Kabupaten Tangerang',
+            npsn: '20603730',
+            phone: '021-55930123',
+            email: 'sdnteluknaga01@gmail.com',
+            activeYear: '2026',
+            logoUrl: '',
+            headmasterName: 'H. Ahmad Supriyadi, S.Pd., M.Pd.',
+            headmasterNip: '196812041991031005'
+        };
+
+        const DEFAULT_NIS_SETTINGS = {
+            year: '2026',
+            counter: 4
+        };
+
+        const DEFAULT_LETTER_CONFIG = {
+            prefix: '400.3.5',
+            schoolCode: 'SDN-TELUKNAGA1',
+            sequence: 1,
+            year: '2026'
+        };
+
+        const DEFAULT_STUDENTS = [
+            {
+                id: 'STD-SD-001',
+                nis: '20261001',
+                nisn: '3189234112',
+                fullName: 'Ananda Kevin Putra',
+                gender: 'L',
+                classLevel: '1',
+                classTarget: 'Kelas 1-A',
+                type: 'BARU',
+                status: 'DITERIMA',
+                originSchool: 'TK Pembina Teluknaga',
+                destinationSchool: '',
+                transferReason: 'Penerimaan Murid Baru (PPDB SD)',
+                letterNo: '421.2/012/SDN.TLN.01/2026'
+            },
+            {
+                id: 'STD-SD-002',
+                nis: '20263002',
+                nisn: '3177123984',
+                fullName: 'Nayla Az-Zahra',
+                gender: 'P',
+                classLevel: '3',
+                classTarget: 'Kelas 3-B',
+                type: 'MASUK',
+                status: 'DITERIMA',
+                originSchool: 'SD Negeri Dadap 02',
+                destinationSchool: '',
+                transferReason: 'Mengikuti orang tua pindah domisili',
+                letterNo: '421.2/024/SDN.TLN.01/2026'
+            },
+            {
+                id: 'STD-SD-003',
+                nis: '20265003',
+                nisn: '3156543219',
+                fullName: 'Muhammad Raihan',
+                gender: 'L',
+                classLevel: '5',
+                classTarget: 'Kelas 5-A',
+                type: 'KELUAR',
+                status: 'PINDAH',
+                originSchool: 'SD NEGERI TELUKNAGA I',
+                destinationSchool: 'SD Islam Al-Azhar BSD',
+                transferReason: 'Kepindahan tugas orang tua ke wilayah lain',
+                letterNo: '421.2/056/MUTASI-SD/2026'
+            }
+        ];
+
+        // Runtime State Loaded from LocalStorage or Defaults
+        let schoolProfile = JSON.parse(localStorage.getItem('sd_schoolProfile')) || DEFAULT_SCHOOL_PROFILE;
+        let nisSettings = JSON.parse(localStorage.getItem('sd_nisSettings')) || DEFAULT_NIS_SETTINGS;
+        let letterConfig = JSON.parse(localStorage.getItem('sd_letterConfig')) || DEFAULT_LETTER_CONFIG;
+        let students = JSON.parse(localStorage.getItem('sd_students')) || DEFAULT_STUDENTS;
+
+        // Backward compatibility if old schema exists without kop1/kop2
+        if(!schoolProfile.kop1) {
+            schoolProfile.kop1 = 'PEMERINTAH KABUPATEN TANGERANG';
+            schoolProfile.kop2 = 'DINAS PENDIDIKAN';
+        }
+
+        let sidebarOpen = true;
+        let currentModalStudentId = null;
+
+        window.onload = function() {
+            lucide.createIcons();
+            syncFormInputs();
+            refreshAllViews();
+        };
+
+        function saveToLocalStorage() {
+            localStorage.setItem('sd_schoolProfile', JSON.stringify(schoolProfile));
+            localStorage.setItem('sd_nisSettings', JSON.stringify(nisSettings));
+            localStorage.setItem('sd_letterConfig', JSON.stringify(letterConfig));
+            localStorage.setItem('sd_students', JSON.stringify(students));
+        }
+
+        function exportDataJSON() {
+            const dataToExport = {
+                appVersion: '1.0',
+                exportedAt: new Date().toISOString(),
+                schoolProfile: schoolProfile,
+                nisSettings: nisSettings,
+                students: students
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToExport, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `Data_SD_${schoolProfile.schoolName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast('File backup JSON berhasil diunduh!');
+        }
+
+        function importDataJSON(event) {
+            const fileReader = new FileReader();
+            if (event.target.files && event.target.files[0]) {
+                fileReader.readAsText(event.target.files[0], "UTF-8");
+                fileReader.onload = function (e) {
+                    try {
+                        const parsedData = JSON.parse(e.target.result);
+                        if(parsedData.schoolProfile && parsedData.students) {
+                            schoolProfile = parsedData.schoolProfile;
+                            if(!schoolProfile.kop1) {
+                                schoolProfile.kop1 = 'PEMERINTAH KABUPATEN TANGERANG';
+                                schoolProfile.kop2 = 'DINAS PENDIDIKAN';
+                            }
+                            nisSettings = parsedData.nisSettings || DEFAULT_NIS_SETTINGS;
+                            students = parsedData.students;
+                            
+                            saveToLocalStorage();
+                            syncFormInputs();
+                            refreshAllViews();
+                            showToast('Data berhasil dimuat dari file JSON!');
+                        } else {
+                            showToast('Format file JSON tidak valid untuk Sistem SD ini!', 'error');
+                        }
+                    } catch (error) {
+                        showToast('Gagal membaca file JSON: ' + error.message, 'error');
+                    }
+                };
+            }
+        }
+
+        function handleLogoUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    schoolProfile.logoUrl = e.target.result;
+                    showToast('Logo berhasil diunggah!');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function removeLogo() {
+            schoolProfile.logoUrl = '';
+            document.getElementById('input-logo-file').value = '';
+            showToast('Logo dihapus, kembali ke inisial teks.');
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            const msg = document.getElementById('toast-message');
+            
+            toast.className = `fixed top-5 right-5 z-50 px-5 py-3 rounded-xl shadow-lg border text-white font-medium flex items-center space-x-3 transition-all duration-300 transform translate-y-0 opacity-0 ${type === 'error' ? 'bg-red-600 border-red-700' : 'bg-emerald-600 border-emerald-700'}`;
+            icon.innerHTML = type === 'error' ? '<i data-lucide="x-circle"></i>' : '<i data-lucide="check-circle"></i>';
+            msg.textContent = message;
+            lucide.createIcons();
+            
+            setTimeout(() => {
+                toast.classList.remove('opacity-0', 'translate-y-[-200%]');
+                toast.classList.add('opacity-100', 'translate-y-0');
+            }, 50);
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', 'translate-y-[-200%]');
+            }, 3500);
+        }
+
+        function toggleSidebar() {
+            sidebarOpen = !sidebarOpen;
+            const sidebar = document.getElementById('sidebar');
+            const labels = document.querySelectorAll('.sidebar-label');
+            const titles = document.querySelectorAll('.sidebar-title-text');
+            
+            if (sidebarOpen) {
+                sidebar.className = 'w-64 bg-slate-900 text-slate-300 transition-all duration-300 flex flex-col border-r border-slate-800 z-20';
+                labels.forEach(l => l.classList.remove('hidden'));
+                titles.forEach(t => t.classList.remove('hidden'));
+            } else {
+                sidebar.className = 'w-20 bg-slate-900 text-slate-300 transition-all duration-300 flex flex-col border-r border-slate-800 z-20';
+                labels.forEach(l => l.classList.add('hidden'));
+                titles.forEach(t => t.classList.add('hidden'));
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+
+            document.querySelectorAll('.sidebar-btn').forEach(btn => {
+                if(btn.dataset.tab === tabId) {
+                    btn.className = 'sidebar-btn w-full flex items-center justify-start space-x-3 px-3.5 py-3 rounded-xl text-sm font-medium transition bg-red-600 text-white shadow-md text-left';
+                } else {
+                    btn.className = 'sidebar-btn w-full flex items-center justify-start space-x-3 px-3.5 py-3 rounded-xl text-sm font-medium transition text-slate-400 hover:bg-slate-800 hover:text-white text-left';
+                }
+            });
+        }
+
+        function syncFormInputs() {
+            document.getElementById('input-kop-1').value = schoolProfile.kop1;
+            document.getElementById('input-kop-2').value = schoolProfile.kop2;
+            document.getElementById('input-school-name').value = schoolProfile.schoolName;
+            document.getElementById('input-address').value = schoolProfile.address;
+            document.getElementById('input-npsn').value = schoolProfile.npsn;
+            document.getElementById('input-phone').value = schoolProfile.phone;
+            document.getElementById('input-email').value = schoolProfile.email;
+            document.getElementById('input-active-year').value = schoolProfile.activeYear;
+            
+            document.getElementById('input-hm-name').value = schoolProfile.headmasterName;
+            document.getElementById('input-hm-nip').value = schoolProfile.headmasterNip;
+
+            document.getElementById('nis-year').value = nisSettings.year;
+            document.getElementById('nis-counter').value = nisSettings.counter;
+            updateNisPreview();
+
+            document.getElementById('gen-prefix').value = letterConfig.prefix;
+            document.getElementById('gen-school-code').value = letterConfig.schoolCode;
+            document.getElementById('gen-sequence').value = letterConfig.sequence;
+            document.getElementById('gen-year').value = letterConfig.year;
+            updateLetterGenPreview();
+
+            document.getElementById('header-school-name').textContent = schoolProfile.schoolName;
+            document.getElementById('header-active-year').textContent = `${schoolProfile.activeYear}/${parseInt(schoolProfile.activeYear)+1}`;
+
+            const headerLogoContainer = document.getElementById('header-logo-container');
+            if(schoolProfile.logoUrl) {
+                headerLogoContainer.innerHTML = `<img src="${schoolProfile.logoUrl}" class="w-full h-full object-cover" alt="Logo">`;
+            } else {
+                headerLogoContainer.innerHTML = `<span id="header-logo-text" class="text-white font-bold text-lg">SD</span>`;
+            }
+        }
+
+        function updateNisPreview() {
+            const yr = document.getElementById('nis-year').value || '2026';
+            const cnt = String(document.getElementById('nis-counter').value || 1).padStart(3, '0');
+            document.getElementById('nis-preview').textContent = `${yr}1${cnt}`;
+        }
+
+        function updateLetterGenPreview() {
+            const pref = document.getElementById('gen-prefix').value || '400.3.5';
+            const code = document.getElementById('gen-school-code').value || 'SDN-TESA';
+            const seq = String(document.getElementById('gen-sequence').value || 1).padStart(3, '0');
+            const yr = document.getElementById('gen-year').value || '2026';
+            document.getElementById('gen-preview-box').textContent = `${pref}/${seq}/${code}/${yr}`;
+        }
+
+        document.getElementById('nis-year').addEventListener('input', updateNisPreview);
+        document.getElementById('nis-counter').addEventListener('input', updateNisPreview);
+        document.getElementById('gen-prefix').addEventListener('input', updateLetterGenPreview);
+        document.getElementById('gen-school-code').addEventListener('input', updateLetterGenPreview);
+        document.getElementById('gen-sequence').addEventListener('input', updateLetterGenPreview);
+        document.getElementById('gen-year').addEventListener('input', updateLetterGenPreview);
+
+        function saveLetterGeneratorSettings() {
+            letterConfig.prefix = document.getElementById('gen-prefix').value;
+            letterConfig.schoolCode = document.getElementById('gen-school-code').value;
+            letterConfig.sequence = parseInt(document.getElementById('gen-sequence').value) || 1;
+            letterConfig.year = document.getElementById('gen-year').value;
+            
+            saveToLocalStorage();
+            showToast('Konfigurasi Generator Nomor Surat berhasil disimpan!');
+        }
+
+        function applySequentialNumber() {
+            const seqStr = String(letterConfig.sequence).padStart(3, '0');
+            const generatedNo = `${letterConfig.prefix}/${seqStr}/${letterConfig.schoolCode}/${letterConfig.year}`;
+            document.getElementById('custom-letter-input').value = generatedNo;
+            letterConfig.sequence++;
+            saveToLocalStorage();
+            updateLetterGenPreview();
+            showToast(`Nomor urut ${generatedNo} diterapkan & counter bertambah!`);
+        }
+
+        function saveSchoolIdentity() {
+            schoolProfile.kop1 = document.getElementById('input-kop-1').value;
+            schoolProfile.kop2 = document.getElementById('input-kop-2').value;
+            schoolProfile.schoolName = document.getElementById('input-school-name').value;
+            schoolProfile.address = document.getElementById('input-address').value;
+            schoolProfile.npsn = document.getElementById('input-npsn').value;
+            schoolProfile.phone = document.getElementById('input-phone').value;
+            schoolProfile.email = document.getElementById('input-email').value;
+            schoolProfile.activeYear = document.getElementById('input-active-year').value;
+            
+            saveToLocalStorage();
+            syncFormInputs();
+            showToast('Identitas dan Kop Surat 4 Baris berhasil diperbarui & disimpan!');
+        }
+
+        function saveHeadmaster() {
+            schoolProfile.headmasterName = document.getElementById('input-hm-name').value;
+            schoolProfile.headmasterNip = document.getElementById('input-hm-nip').value;
+            
+            saveToLocalStorage();
+            showToast('Data Kepala Sekolah SD diperbarui & disimpan!');
+        }
+
+        function saveNisSettings() {
+            nisSettings.year = document.getElementById('nis-year').value;
+            nisSettings.counter = parseInt(document.getElementById('nis-counter').value) || 1;
+            
+            saveToLocalStorage();
+            showToast('Pengaturan generator NIS 8 Digit SD disimpan!');
+        }
+
+        function refreshAllViews() {
+            const activeCount = students.filter(s => s.status !== 'PINDAH').length;
+            const inboundCount = students.filter(s => s.type === 'MASUK').length;
+            const outboundCount = students.filter(s => s.type === 'KELUAR' || s.status === 'PINDAH').length;
+
+            document.getElementById('stat-active').textContent = activeCount;
+            document.getElementById('stat-inbound').textContent = inboundCount;
+            document.getElementById('stat-outbound').textContent = outboundCount;
+
+            renderDashboardTable();
+            renderStudentsTable();
+            renderInboundGrid();
+            renderOutboundGrid();
+            renderLettersTable();
+            lucide.createIcons();
+        }
+
+        function renderDashboardTable() {
+            const tbody = document.getElementById('dashboard-table-body');
+            tbody.innerHTML = students.slice(0, 5).map(s => `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="py-3 px-3 font-semibold text-slate-800">${s.fullName}</td>
+                    <td class="py-3 px-3 font-mono text-xs text-red-700 font-bold">${s.nis}</td>
+                    <td class="py-3 px-3"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${s.type==='BARU'?'bg-red-100 text-red-700':s.type==='MASUK'?'bg-emerald-100 text-emerald-700':'bg-amber-100 text-amber-700'}">${s.type}</span></td>
+                    <td class="py-3 px-3 text-slate-600 font-medium">${s.classTarget}</td>
+                    <td class="py-3 px-3"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${s.status==='DITERIMA'?'bg-emerald-50 text-emerald-700 border border-emerald-200':'bg-amber-50 text-amber-700'}">${s.status}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        function renderStudentsTable() {
+            const query = document.getElementById('student-search').value.toLowerCase();
+            const tbody = document.getElementById('students-table-body');
+            const filtered = students.filter(s => s.fullName.toLowerCase().includes(query) || s.nis.includes(query));
+
+            tbody.innerHTML = filtered.map(s => `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="py-3.5 px-4 font-mono text-xs font-bold text-slate-700">${s.nis}<br/><span class="text-slate-400 font-normal">${s.nisn}</span></td>
+                    <td class="py-3.5 px-4 font-bold text-slate-900">${s.fullName}<br/><span class="text-xs text-slate-500 font-normal">${s.gender==='L'?'Laki-laki':'Perempuan'}</span></td>
+                    <td class="py-3.5 px-4"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${s.type==='BARU'?'bg-red-100 text-red-700':s.type==='MASUK'?'bg-emerald-100 text-emerald-700':'bg-amber-100 text-amber-700'}">${s.type}</span></td>
+                    <td class="py-3.5 px-4 text-xs text-slate-600">${s.type==='KELUAR'?'SD Tujuan: '+s.destinationSchool:'Asal: '+s.originSchool}</td>
+                    <td class="py-3.5 px-4 text-slate-700 font-medium">${s.classTarget}</td>
+                    <td class="py-3.5 px-4"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${s.status==='DITERIMA'?'bg-emerald-50 text-emerald-700 border border-emerald-200':'bg-amber-50 text-amber-700'}">${s.status}</span></td>
+                    <td class="py-3.5 px-4 text-center">
+                        <button onclick="openLetterModal('${s.id}')" class="bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center space-x-1">
+                            <i data-lucide="printer" size="13"></i><span>Surat SD</span>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function renderInboundGrid() {
+            const grid = document.getElementById('inbound-grid');
+            const list = students.filter(s => s.type === 'MASUK' || s.type === 'BARU');
+            grid.innerHTML = list.map(s => `
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">${s.type}</span>
+                            <h3 class="text-lg font-bold text-slate-900 mt-2">${s.fullName}</h3>
+                            <p class="text-xs text-slate-500 font-mono">NIS SD: ${s.nis} • NISN: ${s.nisn}</p>
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border">${s.status}</span>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-xl space-y-1 text-xs text-slate-700">
+                        <div class="flex justify-between"><span>Asal TK/SD:</span><span class="font-semibold">${s.originSchool}</span></div>
+                        <div class="flex justify-between"><span>Rombel Target:</span><span class="font-semibold">${s.classTarget}</span></div>
+                    </div>
+                    <div class="flex justify-end pt-2 border-t border-slate-100">
+                        <button onclick="openLetterModal('${s.id}')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center space-x-1.5">
+                            <i data-lucide="printer" size="14"></i><span>Cetak Surat Diterima SD</span>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderOutboundGrid() {
+            const grid = document.getElementById('outbound-grid');
+            const list = students.filter(s => s.type === 'KELUAR' || s.status === 'PINDAH');
+            grid.innerHTML = list.map(s => `
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-amber-200 space-y-4">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">Mutasi Keluar SD</span>
+                            <h3 class="text-lg font-bold text-slate-900 mt-2">${s.fullName}</h3>
+                            <p class="text-xs text-slate-500 font-mono">NIS SD: ${s.nis} • NISN: ${s.nisn}</p>
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border">PINDAH</span>
+                    </div>
+                    <div class="bg-amber-50/50 p-4 rounded-xl space-y-1 text-xs text-slate-700 border border-amber-100">
+                        <div class="flex justify-between"><span>SD Tujuan:</span><span class="font-semibold text-amber-900">${s.destinationSchool}</span></div>
+                        <div class="flex justify-between"><span>Alasan:</span><span class="font-semibold">${s.transferReason}</span></div>
+                    </div>
+                    <div class="flex justify-end pt-2 border-t border-slate-100">
+                        <button onclick="openLetterModal('${s.id}')" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center space-x-1.5">
+                            <i data-lucide="printer" size="14"></i><span>Cetak Surat Pindah SD</span>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderLettersTable() {
+            const tbody = document.getElementById('letters-table-body');
+            tbody.innerHTML = students.map(s => `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="py-3 px-4 font-bold text-slate-800">${s.fullName}</td>
+                    <td class="py-3 px-4 font-mono text-xs text-slate-600 font-bold">${s.nis}</td>
+                    <td class="py-3 px-4"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${s.type==='KELUAR'?'bg-amber-100 text-amber-800':'bg-red-100 text-red-800'}">${s.type==='KELUAR'?'Surat Pindah SD':'Surat Diterima SD'}</span></td>
+                    <td class="py-3 px-4 font-mono text-xs font-bold text-slate-700">${s.letterNo}</td>
+                    <td class="py-3 px-4 text-center">
+                        <button onclick="openLetterModal('${s.id}')" class="bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center space-x-1.5">
+                            <i data-lucide="file-text" size="14"></i><span>Pratinjau & Edit No Surat</span>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openAddModal(type) {
+            document.getElementById('form-type-val').value = type;
+            document.getElementById('modal-add-title').textContent = 'Form Pendaftaran Siswa Baru / Mutasi Masuk SD';
+            document.getElementById('modal-add').classList.remove('hidden');
+            document.getElementById('modal-add').classList.add('flex');
+        }
+
+        function openOutboundModal() {
+            const select = document.getElementById('outbound-select-student');
+            const activeStudents = students.filter(s => s.status !== 'PINDAH');
+            
+            select.innerHTML = '<option value="">-- Pilih Siswa yang Akan Mutasi Keluar --</option>' + 
+                activeStudents.map(s => `<option value="${s.id}">${s.fullName} (NIS: ${s.nis} - ${s.classTarget})</option>`).join('');
+
+            document.getElementById('preview-out-nis').textContent = '-';
+            document.getElementById('preview-out-nisn').textContent = '-';
+            document.getElementById('preview-out-class').textContent = '-';
+            document.getElementById('form-outbound-student').reset();
+
+            document.getElementById('modal-outbound').classList.remove('hidden');
+            document.getElementById('modal-outbound').classList.add('flex');
+        }
+
+        function onSelectOutboundStudent(studentId) {
+            if(!studentId) {
+                document.getElementById('preview-out-nis').textContent = '-';
+                document.getElementById('preview-out-nisn').textContent = '-';
+                document.getElementById('preview-out-class').textContent = '-';
+                return;
+            }
+            const s = students.find(item => item.id === studentId);
+            if(s) {
+                document.getElementById('preview-out-nis').textContent = s.nis;
+                document.getElementById('preview-out-nisn').textContent = s.nisn;
+                document.getElementById('preview-out-class').textContent = s.classTarget;
+            }
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+            document.getElementById(id).classList.remove('flex');
+        }
+
+        function handleStudentSubmit(e) {
+            e.preventDefault();
+            const type = document.getElementById('form-type-val').value;
+            const classLevel = document.getElementById('form-class-level').value;
+            const fullName = document.getElementById('form-fullname').value;
+            const nisn = document.getElementById('form-nisn').value;
+            const gender = document.getElementById('form-gender').value;
+            const classTarget = document.getElementById('form-class-target').value;
+            const origin = document.getElementById('form-origin').value || 'TK Sederajat';
+            const reason = document.getElementById('form-reason').value || '';
+
+            const yr = nisSettings.year;
+            const lvl = classLevel;
+            const cnt = String(nisSettings.counter).padStart(3, '0');
+            const generatedNis = `${yr}${lvl}${cnt}`;
+            nisSettings.counter++;
+
+            const seqStr = String(letterConfig.sequence).padStart(3, '0');
+            const generatedLetterNo = `${letterConfig.prefix}/${seqStr}/${letterConfig.schoolCode}/${letterConfig.year}`;
+            letterConfig.sequence++;
+
+            const newObj = {
+                id: `STD-SD-${Date.now()}`,
+                nis: generatedNis,
+                nisn: nisn,
+                fullName: fullName,
+                gender: gender,
+                classLevel: classLevel,
+                classTarget: classTarget,
+                type: type,
+                status: 'DITERIMA',
+                originSchool: origin,
+                destinationSchool: '',
+                transferReason: reason,
+                letterNo: generatedLetterNo
+            };
+
+            students.unshift(newObj);
+            saveToLocalStorage();
+            closeModal('modal-add');
+            document.getElementById('form-add-student').reset();
+            refreshAllViews();
+            showToast(`Data murid ${fullName} disimpan! No Surat: ${generatedLetterNo}`);
+        }
+
+        function handleOutboundSubmit(e) {
+            e.preventDefault();
+            const studentId = document.getElementById('outbound-select-student').value;
+            const dest = document.getElementById('outbound-destination').value;
+            const reason = document.getElementById('outbound-reason').value;
+
+            const s = students.find(item => item.id === studentId);
+            if(!s) {
+                showToast('Pilih data siswa terlebih dahulu!', 'error');
+                return;
+            }
+
+            const seqStr = String(letterConfig.sequence).padStart(3, '0');
+            const generatedLetterNo = `${letterConfig.prefix}/${seqStr}/${letterConfig.schoolCode}/${letterConfig.year}`;
+            letterConfig.sequence++;
+
+            s.type = 'KELUAR';
+            s.status = 'PINDAH';
+            s.destinationSchool = dest;
+            s.transferReason = reason;
+            s.letterNo = generatedLetterNo;
+
+            saveToLocalStorage();
+            closeModal('modal-outbound');
+            refreshAllViews();
+            showToast(`Mutasi keluar untuk ${s.fullName} berhasil dicatat! No Surat: ${generatedLetterNo}`);
+        }
+
+        function openLetterModal(studentId) {
+            currentModalStudentId = studentId;
+            const s = students.find(item => item.id === studentId);
+            if(!s) return;
+
+            document.getElementById('custom-letter-input').value = s.letterNo;
+            document.getElementById('letter-kop-1').textContent = schoolProfile.kop1;
+            document.getElementById('letter-kop-2').textContent = schoolProfile.kop2;
+            document.getElementById('letter-school-name').textContent = schoolProfile.schoolName;
+            document.getElementById('letter-address').textContent = schoolProfile.address;
+            document.getElementById('letter-no-display').textContent = s.letterNo;
+            document.getElementById('letter-hm-name').textContent = schoolProfile.headmasterName;
+            document.getElementById('letter-hm-nip').textContent = `NIP. ${schoolProfile.headmasterNip}`;
+
+            const letterLogoRender = document.getElementById('letter-logo-render');
+            if(schoolProfile.logoUrl) {
+                letterLogoRender.innerHTML = `<img src="${schoolProfile.logoUrl}" class="w-full h-full object-contain p-0.5" alt="Logo">`;
+            } else {
+                letterLogoRender.innerHTML = `<span class="font-bold text-xl text-red-600">SD</span>`;
+            }
+
+            const titleEl = document.getElementById('letter-title');
+            const bodyEl = document.getElementById('letter-body-content');
+
+            if(s.type === 'KELUAR') {
+                titleEl.textContent = 'SURAT KETERANGAN PINDAH SEKOLAH DASAR';
+                bodyEl.innerHTML = `
+                    <p>Kepala ${schoolProfile.schoolName} menerangkan dengan sebenarnya bahwa murid Sekolah Dasar:</p>
+                    <div class="pl-6 space-y-1.5 font-sans">
+                        <div class="grid grid-cols-3"><span class="text-slate-600">Nama Lengkap Murid</span><span class="font-bold col-span-2">: ${s.fullName}</span></div>
+                        <div class="grid grid-cols-3"><span class="text-slate-600">NIS SD / NISN</span><span class="font-bold col-span-2 font-mono">: ${s.nis} / ${s.nisn}</span></div>
+                        <div class="grid grid-cols-3"><span class="text-slate-600">Tingkat Kelas SD</span><span class="font-semibold col-span-2">: Kelas ${s.classLevel} SD (${s.classTarget})</span></div>
+                        <div class="grid grid-cols-3"><span class="text-slate-600">Pindah Ke SD Tujuan</span><span class="font-bold col-span-2 text-amber-800">: ${s.destinationSchool}</span></div>
+                        <div class="grid grid-cols-3"><span class="text-slate-600">Alasan Pindah</span><span class="font-semibold col-span-2">: ${s.transferReason}</span></div>
+                    </div>
+                    <p class="pt-2">Murid tersebut di atas resmi dilepas dari ${schoolProfile.schoolName} berdasarkan permohonan dari orang tua/wali murid.</p>
+                `;
+            } else {
+                titleEl.textContent = 'SURAT KETERANGAN DITERIMA DI SEKOLAH DASAR';
+                bodyEl.innerHTML = `
+                    <p>Yang bertanda tangan di bawah ini Kepala ${schoolProfile.schoolName}, menerangkan bahwa murid:</p>
+                    <div class="pl-6 space-y-1.5 font-sans">
+                        <div class="grid grid-cols-3"><span class="text-slate-600">Nama Lengkap Murid</span><span class="font-bold col-span-2">: ${s.fullName}</span></div>
+                        <div class="grid grid-cols-3"><span class="text-slate-600">NIS SD (8 Digit)</span><span class="font-bold col-span-2 font-mono text-red-700">: ${s.nis}</span></div>
+                        <div class="grid grid-cols-3"><span class="text-slate-600">NISN</span><span class="font-bold col-span-2 font-mono">: ${s.nisn}</span></div>
+                        <div class="grid grid-cols-3"><span class="text-slate-600">Asal TK / SD</span><span class="font-semibold col-span-2">: ${s.originSchool}</span></div>
+                        <div class="grid grid-cols-3"><span class="text-slate-600">Diterima di Rombel</span><span class="font-semibold col-span-2">: Kelas ${s.classLevel} SD (${s.classTarget})</span></div>
+                    </div>
+                    <p class="pt-2">Nama peserta didik tersebut di atas dinyatakan <b>DITERIMA</b> sebagai murid di ${schoolProfile.schoolName} pada Tahun Pelajaran ${schoolProfile.activeYear}/${parseInt(schoolProfile.activeYear)+1}.</p>
+                `;
+            }
+
+            document.getElementById('modal-letter').classList.remove('hidden');
+            document.getElementById('modal-letter').classList.add('flex');
+        }
+
+        function saveCustomLetterNumber() {
+            if(!currentModalStudentId) return;
+            const newNo = document.getElementById('custom-letter-input').value;
+            const s = students.find(item => item.id === currentModalStudentId);
+            if(s) {
+                s.letterNo = newNo;
+                document.getElementById('letter-no-display').textContent = newNo;
+                saveToLocalStorage();
+                refreshAllViews();
+                showToast(`Nomor surat SD untuk ${s.fullName} diperbarui!`);
+            }
+        }
+    </script>
+</body>
+</html>
